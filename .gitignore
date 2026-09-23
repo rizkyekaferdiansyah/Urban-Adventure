@@ -1,0 +1,17 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+uploads/*
+!uploads/.gitkeep
+
+# Local runtime and editor files
+.vscode/
+.idea/
+.phpunit.result.cache
+
+# Temporary exports and backups
+*.tmp
+*.bak
+*.sql.gz

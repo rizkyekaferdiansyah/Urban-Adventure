@@ -1,0 +1,1 @@
+<?php $title='Pesanan | Urban Adventure'; require __DIR__ . '/_header.php'; ?><section class="section"><p class="eyebrow dark">AKTIVITAS RENTAL</p><h1>Riwayat pesanan</h1><div id="orders"><p class="muted">Memuat pesanan...</p></div></section><script src="../assets/js/app.js"></script><script>loadOrders();</script><?php require __DIR__ . '/_footer.php'; ?>
