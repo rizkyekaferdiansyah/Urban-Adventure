@@ -1,1 +1,7 @@
-<?php $title='Detail Produk | Urban Adventure'; require __DIR__ . '/_header.php'; ?><section id="productDetail" class="section"><p class="muted">Memuat produk...</p></section><script src="../assets/js/app.js"></script><script>loadProduct(<?= (int)($_GET['id']??0) ?>);</script><?php require __DIR__ . '/_footer.php'; ?>
+<?php $title='Detail Produk | Urban Adventure'; require __DIR__ . '/_header.php'; ?>
+<section id="productDetail" class="section">
+    <p class="muted">Memuat produk...</p>
+</section>
+<script src="../assets/js/app.js"></script>
+<script>loadProduct(<?= (int)($_GET['id']??0) ?>);</script>
+<?php require __DIR__ . '/_footer.php'; ?>
