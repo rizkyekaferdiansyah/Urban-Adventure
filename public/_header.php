@@ -18,7 +18,8 @@ if (session_status() !== PHP_SESSION_ACTIVE) session_start();
                 <span>URBAN ADVENTURE<small>OUTDOOR RENTAL · JOGJA</small></span>
             </a>
             <nav>
-                <a href="index.php">Katalog</a>
+                <a href="index.php">Beranda</a>
+                <a href="index.php#katalog">Katalog</a>
                 <a href="cart.php">Keranjang</a>
                 <?php if(isset($_SESSION['user'])): ?>
                     <a href="orders.php">Pesanan</a>

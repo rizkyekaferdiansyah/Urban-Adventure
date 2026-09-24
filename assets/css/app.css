@@ -624,11 +624,12 @@ select {
 
 .home-hero {
   min-height: 610px;
-  background: linear-gradient(110deg, rgba(22, 34, 29, 0.98), rgba(42, 70, 57, 0.88)), url("https://images.unsplash.com/photo-1478827536114-da961b7e96aa?auto=format&fit=crop&w=1800&q=85") center/cover;
+  background: linear-gradient(110deg, rgba(22, 34, 29, 0.98) 10%, rgba(42, 70, 57, 0.84) 58%, rgba(42, 70, 57, 0.52)), url("https://images.unsplash.com/photo-1478827536114-da961b7e96aa?auto=format&fit=crop&w=1800&q=85") center/cover;
 }
 
 .home-hero::before { background: radial-gradient(circle at 82% 20%, rgba(216, 185, 106, 0.25), transparent 20%); }
-.home-hero-copy { max-width: 790px; }
+.home-hero-copy { max-width: 790px; animation: home-enter .7s ease both; }
+.home-hero-copy::after { content: "JOGJA / OUTDOOR RENTAL"; display: block; margin-top: 54px; color: rgba(255,255,255,.42); font-size: .68rem; letter-spacing: .2em; }
 .home-actions { display: flex; align-items: center; gap: 20px; margin-top: 28px; }
 .home-link { color: #e4efcf; font-weight: 700; }
 .home-trust { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 48px; color: rgba(255,255,255,.7); font-size: .83rem; }
@@ -639,6 +640,9 @@ select {
 .home-intro h2, .home-why h2, .home-reviews h2 { margin: 8px 0 0; font: 800 clamp(2rem, 4vw, 3.7rem)/1.05 "Manrope", sans-serif; letter-spacing: -1.8px; }
 .home-lead { margin: 0 0 16px; font-size: 1.12rem; color: var(--text); }
 .home-intro .muted { max-width: 520px; }
+
+#katalog { scroll-margin-top: 90px; background: rgba(255,255,255,.2); }
+#katalog .product-grid { margin-top: 8px; }
 
 .home-why { padding: 82px max(24px, calc((100% - 1180px) / 2)); background: var(--green-900); color: #fff; }
 .home-why .eyebrow { color: #cbd9b8; }
@@ -663,6 +667,11 @@ select {
 .review-grid blockquote p { margin: 0 0 22px; color: var(--text); }
 .review-grid footer { color: var(--green-700); font-size: .85rem; font-weight: 700; }
 
+@keyframes home-enter {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 980px) {
   .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -685,4 +694,5 @@ select {
   .home-rating { justify-items: start; }
   .review-grid { grid-template-columns: 1fr; }
   .home-trust { gap: 10px 16px; }
+  .home-hero-copy::after { margin-top: 38px; }
 }
