@@ -1,1 +1,7 @@
-<?php require __DIR__.'/_header.php'; ?><section class="section"><p class="eyebrow dark">KONFIGURASI</p><h1>Pengaturan.</h1><p class="muted">Kredensial database diatur melalui environment variable. Jalankan <code>create_admin.php</code> untuk membuat akun admin.</p></section><?php require __DIR__.'/_footer.php'; ?>
+<?php require __DIR__.'/_header.php'; ?>
+<section class="section">
+    <p class="eyebrow dark">KONFIGURASI</p>
+    <h1>Pengaturan.</h1>
+    <p class="muted">Kredensial database diatur melalui environment variable. Jalankan <code>create_admin.php</code> untuk membuat akun admin.</p>
+</section>
+<?php require __DIR__.'/_footer.php'; ?>

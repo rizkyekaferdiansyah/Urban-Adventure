@@ -1,3 +1,14 @@
 <?php
 require __DIR__ . '/bootstrap.php';
-$user=requireLogin(); if($_SERVER['REQUEST_METHOD']!=='POST')jsonResponse(false,'Method tidak diizinkan.',null,405);$input=body();requireCsrf($input);$orderId=(int)($input['order_id']??0);$method=(string)($input['payment_method']??'');$allowed=['bank_transfer','ewallet','cod'];if(!$orderId||!in_array($method,$allowed,true))jsonResponse(false,'Metode pembayaran tidak valid.',null,422);$pdo=db();$stmt=$pdo->prepare('SELECT * FROM orders WHERE id=? AND user_id=?');$stmt->execute([$orderId,$user['id']]);$order=$stmt->fetch();if(!$order)jsonResponse(false,'Pesanan tidak ditemukan.',null,404);$stmt=$pdo->prepare('INSERT INTO payments (order_id,payment_method,payment_status,amount) VALUES (?,?,?,?)');$stmt->execute([$orderId,$method,$method==='cod'?'paid':'waiting_verification',$order['total']]);$status=$method==='cod'?'paid':'waiting_verification';$pdo->prepare('UPDATE orders SET payment_status=?,status=? WHERE id=?')->execute([$status,$method==='cod'?'paid':'waiting_payment',$orderId]);jsonResponse(true,'Metode pembayaran disimpan.',['payment_status'=>$status]);
+$user=requireLogin(); if($_SERVER['REQUEST_METHOD']!=='POST')
+jsonResponse(false,'Method tidak diizinkan.',null,405);
+$input=body();requireCsrf($input);
+$orderId=(int)($input['order_id']??0);
+$method=(string)($input['payment_method']??'');
+$allowed=['bank_transfer','ewallet','cod'];if(!$orderId||!in_array($method,$allowed,true))jsonResponse(false,'Metode pembayaran tidak valid.',null,422);
+$pdo=db();$stmt=$pdo->prepare('SELECT * FROM orders WHERE id=? AND user_id=?');
+$stmt->execute([$orderId,$user['id']]);$order=$stmt->fetch();if(!$order)jsonResponse(false,'Pesanan tidak ditemukan.',null,404);
+$stmt=$pdo->prepare('INSERT INTO payments (order_id,payment_method,payment_status,amount) VALUES (?,?,?,?)');
+$stmt->execute([$orderId,$method,$method==='cod'?'paid':'waiting_verification',$order['total']]);
+$status=$method==='cod'?'paid':'waiting_verification';
+$pdo->prepare('UPDATE orders SET payment_status=?,status=? WHERE id=?')->execute([$status,$method==='cod'?'paid':'waiting_payment',$orderId]);jsonResponse(true,'Metode pembayaran disimpan.',['payment_status'=>$status]);

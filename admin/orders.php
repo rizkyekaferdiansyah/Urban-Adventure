@@ -1,1 +1,9 @@
-<?php require __DIR__.'/_header.php'; ?><section class="section"><p class="eyebrow dark">OPERASIONAL</p><h1>Semua pesanan.</h1><div id="adminOrders">Memuat...</div></section><script src="../assets/js/admin.js"></script><script>loadAdminOrders();</script><?php require __DIR__.'/_footer.php'; ?>
+<?php require __DIR__.'/_header.php'; ?>
+<section class="section">
+    <p class="eyebrow dark">OPERASIONAL</p>
+    <h1>Semua pesanan.</h1>
+    <div id="adminOrders">Memuat...</div>
+</section>
+<script src="../assets/js/admin.js"></script>
+<script>loadAdminOrders();</script>
+<?php require __DIR__.'/_footer.php'; ?>
