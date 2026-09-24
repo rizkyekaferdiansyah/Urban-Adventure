@@ -5,6 +5,9 @@
 *.log
 uploads/*
 !uploads/.gitkeep
+!uploads/.htaccess
+!uploads/products/
+!uploads/products/.htaccess
 
 # Local runtime and editor files
 .vscode/

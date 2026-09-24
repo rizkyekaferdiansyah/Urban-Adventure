@@ -1,6 +1,6 @@
 </main>
 <footer class="site-footer">
-    <span>Urban Adventure Admin</span>
-<span>Data operasional rental</span>
+    <div><strong>URBAN ADVENTURE</strong><small>Admin operations</small></div>
+    <div><span>Data operasional rental</span><small>© 2026 Urban Adventure</small></div>
 </footer>
 </body></html>

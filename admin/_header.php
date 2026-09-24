@@ -10,10 +10,10 @@ if(!isset($_SESSION['user'])||$_SESSION['user']['role']!=='admin'){header('Locat
         <a class="brand" href="index.php">
             <b>UA</b>
             <span>ADMIN CONSOLE<small>URBAN ADVENTURE</small>
-        </span></a><nav><a href="index.php">Dashboard</a>
+        </span></a><button class="menu-toggle" type="button" aria-label="Buka menu admin" aria-controls="admin-nav" aria-expanded="false">Menu</button><nav id="admin-nav"><a href="index.php">Dashboard</a>
         <a href="orders.php">Pesanan</a>
         <a href="products.php">Produk</a>
         <a href="customers.php">Pelanggan</a>
         <a href="reports.php">Laporan</a>
         <a class="button small" href="../api/auth.php?action=logout">Keluar</a>
-    </nav></header><main class="page-shell">
+    </nav></header><main class="page-shell"><script src="../assets/js/nav.js"></script>

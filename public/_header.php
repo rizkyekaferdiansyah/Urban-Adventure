@@ -17,9 +17,11 @@ if (session_status() !== PHP_SESSION_ACTIVE) session_start();
                 <b>UA</b>
                 <span>URBAN ADVENTURE<small>OUTDOOR RENTAL · JOGJA</small></span>
             </a>
-            <nav>
+            <button class="menu-toggle" type="button" aria-label="Buka menu" aria-controls="public-nav" aria-expanded="false">Menu</button>
+            <nav id="public-nav">
                 <a href="index.php">Beranda</a>
                 <a href="index.php#katalog">Katalog</a>
+                <a href="index.php#kenapa">Kenapa Kami</a>
                 <a href="cart.php">Keranjang</a>
                 <?php if(isset($_SESSION['user'])): ?>
                     <a href="orders.php">Pesanan</a>
@@ -30,4 +32,4 @@ if (session_status() !== PHP_SESSION_ACTIVE) session_start();
                 <?php endif; ?>
             </nav>
         </header>
-        <main class="page-shell">
+        <main class="page-shell"><script src="../assets/js/nav.js"></script>
