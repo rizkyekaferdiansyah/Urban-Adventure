@@ -3,7 +3,7 @@ if(session_status()!==PHP_SESSION_ACTIVE)session_start();
 if(!isset($_SESSION['user'])||$_SESSION['user']['role']!=='admin'){header('Location: ../public/login.php');exit;} ?><!doctype html>
 <html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Admin | Urban Adventure</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/css/app.css?v=20260924">
 </head>
 <body>
     <header class="site-header">

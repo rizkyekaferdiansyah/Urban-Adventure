@@ -9,7 +9,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) session_start();
         <title><?= htmlspecialchars($title ?? 'Urban Adventure') ?></title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="../assets/css/app.css">
+        <link rel="stylesheet" href="../assets/css/app.css?v=20260924">
     </head>
     <body>
         <header class="site-header">
@@ -26,6 +26,13 @@ if (session_status() !== PHP_SESSION_ACTIVE) session_start();
                 <?php if(isset($_SESSION['user'])): ?>
                     <a href="orders.php">Pesanan</a>
                     <a href="profile.php">Profil</a>
+                    <div class="notif-wrapper">
+                        <button id="notifBell" class="notif-bell" aria-label="Notifikasi" aria-haspopup="true" aria-expanded="false" onclick="toggleNotifPanel()">🔔</button>
+                        <div id="notifPanel" class="notif-panel" hidden>
+                            <div class="notif-header"><strong>Notifikasi</strong></div>
+                            <div id="notifList"><p class="muted">Memuat...</p></div>
+                        </div>
+                    </div>
                     <a class="button small" href="../api/auth.php?action=logout">Keluar</a>
                 <?php else: ?>
                     <a class="button small" href="login.php">Masuk</a>
@@ -33,3 +40,30 @@ if (session_status() !== PHP_SESSION_ACTIVE) session_start();
             </nav>
         </header>
         <main class="page-shell"><script src="../assets/js/nav.js"></script>
+<script>
+function toggleNotifPanel() {
+  const panel = document.getElementById("notifPanel");
+  const bell  = document.getElementById("notifBell");
+  if (!panel) return;
+  const isHidden = panel.hasAttribute("hidden");
+  if (isHidden) {
+    panel.removeAttribute("hidden");
+    bell.setAttribute("aria-expanded", "true");
+  } else {
+    panel.setAttribute("hidden", "");
+    bell.setAttribute("aria-expanded", "false");
+  }
+}
+// Tutup panel saat klik di luar
+document.addEventListener("click", function(e) {
+  const wrapper = document.querySelector(".notif-wrapper");
+  if (wrapper && !wrapper.contains(e.target)) {
+    const panel = document.getElementById("notifPanel");
+    const bell  = document.getElementById("notifBell");
+    if (panel && !panel.hasAttribute("hidden")) {
+      panel.setAttribute("hidden", "");
+      if (bell) bell.setAttribute("aria-expanded", "false");
+    }
+  }
+});
+</script>
