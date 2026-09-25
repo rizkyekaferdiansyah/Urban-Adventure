@@ -84,74 +84,264 @@ async function loadDashboard(target = "stats") {
 }
 
 // ─── Orders admin ─────────────────────────────────────────────────────────────
+
+// Label tampilan untuk setiap status
+const ORDER_STATUS_LABEL = {
+  pending:              "Menunggu",
+  approved:             "Disetujui",
+  waiting_payment:      "Tunggu Bayar",
+  paid:                 "Lunas",
+  ongoing:              "Berlangsung",
+  completed:            "Selesai",
+  cancelled:            "Dibatalkan",
+};
+
+const PAYMENT_STATUS_LABEL = {
+  unpaid:               "Belum Bayar",
+  waiting_verification: "Menunggu Verif.",
+  paid:                 "Lunas",
+  rejected:             "Ditolak",
+};
+
+// Warna badge per status
+const ORDER_STATUS_COLOR = {
+  pending:              "badge-yellow",
+  approved:             "badge-blue",
+  waiting_payment:      "badge-orange",
+  paid:                 "badge-teal",
+  ongoing:              "badge-green",
+  completed:            "badge-gray",
+  cancelled:            "badge-red",
+};
+
+const PAYMENT_STATUS_COLOR = {
+  unpaid:               "badge-gray",
+  waiting_verification: "badge-orange",
+  paid:                 "badge-green",
+  rejected:             "badge-red",
+};
+
+/**
+ * Tentukan aksi yang tersedia berdasarkan status order saat ini.
+ * Setiap aksi menghasilkan satu tombol yang melakukan perubahan spesifik.
+ */
+function getOrderActions(o) {
+  const actions = [];
+
+  // ── Aksi berdasarkan order status ──────────────────────────────────────────
+  if (o.status === "pending") {
+    actions.push({
+      label: "✓ Setujui",
+      style: "primary",
+      confirm: null,
+      update: { status: "approved" },
+    });
+    actions.push({
+      label: "✕ Tolak",
+      style: "danger",
+      confirm: "Tolak dan batalkan pesanan ini?",
+      update: { status: "cancelled" },
+    });
+  }
+
+  if (o.status === "approved") {
+    actions.push({
+      label: "→ Minta Pembayaran",
+      style: "secondary",
+      confirm: null,
+      update: { status: "waiting_payment" },
+    });
+    actions.push({
+      label: "✕ Batalkan",
+      style: "danger",
+      confirm: "Batalkan pesanan ini?",
+      update: { status: "cancelled" },
+    });
+  }
+
+  // Verifikasi pembayaran — muncul saat customer sudah upload bukti
+  if (
+    o.payment_status === "waiting_verification" &&
+    !["completed", "cancelled"].includes(o.status)
+  ) {
+    actions.push({
+      label: "✓ Verifikasi Bayar",
+      style: "primary",
+      confirm: null,
+      update: { payment_status: "paid", status: "paid" },
+    });
+    actions.push({
+      label: "✕ Tolak Bukti",
+      style: "danger",
+      confirm: "Tolak bukti pembayaran ini?",
+      update: { payment_status: "rejected" },
+    });
+  }
+
+  if (o.status === "paid") {
+    actions.push({
+      label: "▶ Mulai Rental",
+      style: "secondary",
+      confirm: null,
+      update: { status: "ongoing" },
+    });
+  }
+
+  if (o.status === "ongoing") {
+    actions.push({
+      label: "✓ Tandai Selesai",
+      style: "primary",
+      confirm: "Tandai pesanan ini sebagai selesai?",
+      update: { status: "completed" },
+    });
+  }
+
+  return actions;
+}
+
+function renderOrderActions(o) {
+  const actions = getOrderActions(o);
+  if (!actions.length) {
+    return `<span class="text-muted" style="font-size:.8rem">—</span>`;
+  }
+  return actions
+    .map(
+      (a, idx) =>
+        `<button
+          class="order-action-btn btn-${a.style}"
+          onclick="doOrderAction(${o.id}, ${idx}, '${esc(o.order_code)}')"
+          data-order-id="${o.id}"
+          data-action-idx="${idx}"
+        >${a.label}</button>`
+    )
+    .join("");
+}
+
+// Cache aksi per order ID untuk dipakai di doOrderAction
+const _orderActionsCache = {};
+
 async function loadAdminOrders() {
   const container = document.getElementById("adminOrders");
   try {
     await adminInit();
-    const orders = await adminApi("../api/admin.php?resource=orders");
-    container.innerHTML =
-      '<div class="table-wrap"><table><thead><tr>' +
-      "<th>Order</th><th>Pelanggan</th><th>Periode</th><th>Total</th><th>Status</th><th>Pembayaran</th><th>Aksi</th>" +
-      "</tr></thead><tbody>" +
-      orders
-        .map(
-          (o) =>
-            `<tr>
-              <td>${esc(o.order_code)}</td>
-              <td>${esc(o.customer)}<br><small>${esc(o.email)}</small></td>
-              <td>${esc(o.start_date)} – ${esc(o.end_date)}</td>
-              <td>${money(o.total)}</td>
-              <td><span class="status">${esc(o.status)}</span></td>
-              <td>
-                ${esc(o.payment_status)}
-                ${o.payment?.proof_image ? `<br><a href="../${esc(o.payment.proof_image)}" target="_blank" class="text-button">Lihat bukti</a>` : ""}
-              </td>
-              <td>
-                <select onchange="updateOrder(${o.id}, this.value)" aria-label="Ubah status pesanan">
-                  <option value="">Pilih status</option>
-                  ${["approved","waiting_payment","paid","ongoing","completed","cancelled"]
-                    .map((s) => `<option value="${s}"${o.status === s ? " selected" : ""}>${s}</option>`)
-                    .join("")}
-                </select>
-                <select onchange="updateOrderPayment(${o.id}, this.value)" aria-label="Ubah status pembayaran">
-                  <option value="">Status bayar</option>
-                  ${["unpaid","waiting_verification","paid","rejected"]
-                    .map((s) => `<option value="${s}"${o.payment_status === s ? " selected" : ""}>${s}</option>`)
-                    .join("")}
-                </select>
-              </td>
-            </tr>`
-        )
-        .join("") +
-      "</tbody></table></div>";
+
+    // Filter & search UI — buat sekali saja
+    if (!document.getElementById("orderSearchInput")) {
+      container.insertAdjacentHTML(
+        "beforebegin",
+        `<div class="order-filter-bar">
+          <input class="input" id="orderSearchInput" placeholder="Cari kode order / nama pelanggan…" style="max-width:280px">
+          <select class="input" id="orderStatusFilter" style="max-width:200px">
+            <option value="">Semua status</option>
+            ${Object.entries(ORDER_STATUS_LABEL)
+              .map(([val, lbl]) => `<option value="${val}">${lbl}</option>`)
+              .join("")}
+          </select>
+        </div>`
+      );
+      document.getElementById("orderSearchInput").addEventListener("input", renderOrderTable);
+      document.getElementById("orderStatusFilter").addEventListener("change", renderOrderTable);
+    }
+
+    // Simpan data di closure
+    const allOrders = await adminApi("../api/admin.php?resource=orders");
+
+    // Bangun cache aksi
+    allOrders.forEach((o) => {
+      _orderActionsCache[o.id] = getOrderActions(o);
+    });
+
+    window._allAdminOrders = allOrders;
+    renderOrderTable();
+
   } catch (error) {
     container.innerHTML = `<p class="error">${esc(error.message)}</p>`;
   }
 }
 
-async function updateOrder(id, status) {
-  if (!status) return;
-  try {
-    await adminApi("../api/admin.php?resource=orders&id=" + id, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, csrf: adminCsrf }),
-    });
-    loadAdminOrders();
-  } catch (error) {
-    alert(error.message);
+function renderOrderTable() {
+  const container  = document.getElementById("adminOrders");
+  const search     = (document.getElementById("orderSearchInput")?.value || "").toLowerCase();
+  const statusFilter = document.getElementById("orderStatusFilter")?.value || "";
+
+  let orders = window._allAdminOrders || [];
+
+  // Filter
+  if (search) {
+    orders = orders.filter(
+      (o) =>
+        o.order_code.toLowerCase().includes(search) ||
+        o.customer.toLowerCase().includes(search) ||
+        o.email.toLowerCase().includes(search)
+    );
   }
+  if (statusFilter) {
+    orders = orders.filter((o) => o.status === statusFilter);
+  }
+
+  if (!orders.length) {
+    container.innerHTML = '<p class="empty">Tidak ada pesanan ditemukan.</p>';
+    return;
+  }
+
+  container.innerHTML =
+    '<div class="table-wrap"><table class="orders-table"><thead><tr>' +
+    "<th>Pesanan</th><th>Pelanggan</th><th>Periode & Item</th><th>Total</th><th>Status</th><th>Pembayaran</th><th>Aksi</th>" +
+    "</tr></thead><tbody>" +
+    orders
+      .map((o) => {
+        const statusBadge  = `<span class="badge ${ORDER_STATUS_COLOR[o.status] || "badge-gray"}">${esc(ORDER_STATUS_LABEL[o.status] || o.status)}</span>`;
+        const payBadge     = `<span class="badge ${PAYMENT_STATUS_COLOR[o.payment_status] || "badge-gray"}">${esc(PAYMENT_STATUS_LABEL[o.payment_status] || o.payment_status)}</span>`;
+        const itemsSummary = o.items?.length
+          ? o.items.map((i) => `${esc(i.product_name)} ×${i.quantity}`).join(", ")
+          : "—";
+
+        return `<tr>
+          <td>
+            <strong class="order-code">${esc(o.order_code)}</strong>
+            <br><small class="text-muted">${esc(o.created_at?.substring(0, 10) || "")}</small>
+          </td>
+          <td>
+            ${esc(o.customer)}
+            <br><small class="text-muted">${esc(o.email)}</small>
+          </td>
+          <td>
+            <small>${esc(o.start_date)} – ${esc(o.end_date)}</small>
+            <br><small class="text-muted">${itemsSummary}</small>
+          </td>
+          <td><strong>${money(o.total)}</strong></td>
+          <td>${statusBadge}</td>
+          <td>
+            ${payBadge}
+            ${
+              o.payment?.proof_image
+                ? `<br><a href="../${esc(o.payment.proof_image)}" target="_blank" class="text-button proof-link">🖼 Lihat bukti</a>`
+                : ""
+            }
+          </td>
+          <td class="action-cell">
+            ${renderOrderActions(o)}
+          </td>
+        </tr>`;
+      })
+      .join("") +
+    "</tbody></table></div>";
 }
 
-async function updateOrderPayment(id, payment_status) {
-  if (!payment_status) return;
+async function doOrderAction(orderId, actionIdx, orderCode) {
+  const actions = _orderActionsCache[orderId];
+  if (!actions || !actions[actionIdx]) return;
+  const action = actions[actionIdx];
+
+  if (action.confirm && !confirm(`${action.confirm}\n\nPesanan: ${orderCode}`)) return;
+
   try {
-    await adminApi("../api/admin.php?resource=orders&id=" + id, {
+    await adminApi("../api/admin.php?resource=orders&id=" + orderId, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ payment_status, csrf: adminCsrf }),
+      body: JSON.stringify({ ...action.update, csrf: adminCsrf }),
     });
-    loadAdminOrders();
+    await loadAdminOrders();
   } catch (error) {
     alert(error.message);
   }

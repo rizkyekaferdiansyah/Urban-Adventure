@@ -1031,3 +1031,101 @@ th { position: sticky; top: 0; z-index: 1; }
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
+
+/* ─── Order management — badge status ────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.badge-yellow  { background: #fef3c7; color: #92400e; }
+.badge-blue    { background: #dbeafe; color: #1e40af; }
+.badge-orange  { background: #ffedd5; color: #9a3412; }
+.badge-teal    { background: #ccfbf1; color: #0f766e; }
+.badge-green   { background: #dcfce7; color: #166534; }
+.badge-gray    { background: #f1f5f9; color: #475569; }
+.badge-red     { background: #fee2e2; color: #991b1b; }
+
+/* ─── Order management — filter bar ─────────────────────────────────────── */
+.order-filter-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 12px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/* ─── Order management — tabel ───────────────────────────────────────────── */
+.orders-table td {
+  vertical-align: top;
+  padding: 12px 10px;
+}
+
+.order-code {
+  font-family: monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+}
+
+.text-muted {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.proof-link {
+  font-size: 0.8rem;
+}
+
+/* ─── Order management — action buttons ──────────────────────────────────── */
+.action-cell {
+  min-width: 140px;
+}
+
+.order-action-btn {
+  display: block;
+  width: 100%;
+  margin-bottom: 5px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: opacity 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.order-action-btn:hover {
+  opacity: 0.85;
+  transform: translateX(2px);
+}
+
+.order-action-btn:active {
+  transform: scale(0.97);
+}
+
+.order-action-btn.btn-primary {
+  background: var(--green-700);
+  color: #fff;
+}
+
+.order-action-btn.btn-secondary {
+  background: var(--green-100);
+  color: var(--green-800);
+  border: 1px solid var(--green-500);
+}
+
+.order-action-btn.btn-danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
