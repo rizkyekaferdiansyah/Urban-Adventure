@@ -349,28 +349,37 @@ if ($resource === 'products' && $method === 'GET') {
 if ($resource === 'products' && $method === 'POST') {
     requireCsrf($input);
     [$name, $category, $price, $stock, $minimum, $maximum] = validateProductInput($input, true);
-    $slug = uniqueProductSlug($pdo, $name);
-    $sku  = trim((string) ($input['sku'] ?? ''))
-        ?: 'UA-' . strtoupper(substr(slugify($name), 0, 3)) . '-'
-           . str_pad(
-               (string) ((int) $pdo->query('SELECT COALESCE(MAX(id),0)+1 FROM products')->fetchColumn()),
-               4, '0', STR_PAD_LEFT
-           );
 
-    $statement = $pdo->prepare(
-        'INSERT INTO products
-         (category_id,name,slug,sku,description,short_description,price_per_day,weekend_price,
-          deposit,stock,unit,minimum_rental_days,maximum_rental_days,late_fee,damage_fee,lost_fee,
-          rental_terms,return_terms,usage_terms,image,status)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-    );
+    $slug        = uniqueProductSlug($pdo, $name);
+    $customSku   = trim((string) ($input['sku'] ?? ''));
+
+    // Validasi SKU custom jika diisi — cek duplikat sebelum insert
+    if ($customSku !== '') {
+        $skuCheck = $pdo->prepare('SELECT id FROM products WHERE sku=?');
+        $skuCheck->execute([$customSku]);
+        if ($skuCheck->fetchColumn()) {
+            jsonResponse(false, "SKU '{$customSku}' sudah digunakan oleh produk lain.", null, 422);
+        }
+    }
+
+    $pdo->beginTransaction();
     try {
+        // INSERT dulu dengan SKU placeholder — akan diupdate setelah dapat ID
+        $tempSku = $customSku ?: ('UA-TEMP-' . bin2hex(random_bytes(8)));
+
+        $statement = $pdo->prepare(
+            'INSERT INTO products
+             (category_id,name,slug,sku,description,short_description,price_per_day,weekend_price,
+              deposit,stock,unit,minimum_rental_days,maximum_rental_days,late_fee,damage_fee,lost_fee,
+              rental_terms,return_terms,usage_terms,image,status)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+        );
         $statement->execute([
-            $category, $name, $slug, $sku,
+            $category, $name, $slug, $tempSku,
             $input['description'] ?? '',
             $input['short_description'] ?? '',
             $price,
-            $input['weekend_price'] ?? null,
+            $input['weekend_price'] !== '' ? ($input['weekend_price'] ?? null) : null,
             $input['deposit'] ?? 0,
             $stock,
             $input['unit'] ?? 'unit',
@@ -384,10 +393,26 @@ if ($resource === 'products' && $method === 'POST') {
             $input['image'] ?? '',
             $input['status'] ?? 'active',
         ]);
-    } catch (PDOException) {
-        jsonResponse(false, 'SKU atau data produk sudah digunakan.', null, 422);
+
+        $id = (int) $pdo->lastInsertId();
+
+        // Jika SKU tidak diisi manual, generate dari ID aktual — dijamin unik
+        if ($customSku === '') {
+            $prefix = strtoupper(substr(slugify($name), 0, 3)) ?: 'PRD';
+            $finalSku = 'UA-' . $prefix . '-' . str_pad((string) $id, 4, '0', STR_PAD_LEFT);
+            $pdo->prepare('UPDATE products SET sku=? WHERE id=?')->execute([$finalSku, $id]);
+        }
+
+        $pdo->commit();
+    } catch (PDOException $e) {
+        $pdo->rollBack();
+        // Jika SKU custom ternyata race-condition duplicate
+        if (str_contains($e->getMessage(), 'Duplicate') || $e->getCode() === '23000') {
+            jsonResponse(false, "SKU '{$customSku}' sudah digunakan. Gunakan SKU lain atau kosongkan untuk otomatis.", null, 422);
+        }
+        jsonResponse(false, 'Gagal menyimpan produk: ' . $e->getMessage(), null, 500);
     }
-    $id = (int) $pdo->lastInsertId();
+
     auditAdmin($pdo, (int) user()['id'], 'CREATE_PRODUCT', 'product', $id, "Produk {$name} dibuat.");
     jsonResponse(true, 'Produk dibuat.', ['id' => $id], 201);
 }

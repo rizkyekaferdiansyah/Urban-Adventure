@@ -365,7 +365,7 @@ async function loadOrders() {
   if (params.get("created")) {
     const banner = document.createElement("div");
     banner.className = "alert alert-success";
-    banner.textContent = `Pesanan ${params.get("created")} berhasil dibuat! Menunggu persetujuan admin.`;
+    banner.textContent = `Pesanan ${params.get("created")} berhasil dibuat! Menunggu persetujuan admin, tombol untuk membayar akan muncul jika admin sudah menyetujui pesanan.`;
     container.before(banner);
   }
 

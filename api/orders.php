@@ -135,7 +135,7 @@ if ($method === 'POST') {
         )->execute([
             $user['id'],
             'Pesanan berhasil dibuat',
-            "Pesanan {$code} senilai " . number_format($grandTotal, 0, ',', '.') . " menunggu persetujuan admin.",
+            "Pesanan {$code} senilai " . number_format($grandTotal, 0, ',', '.') . " menunggu persetujuan admin tombol untuk membayar akan muncul jikan admin sudah menyetujui pesanan.",
         ]);
 
         $pdo->commit();
