@@ -1,20 +1,20 @@
 <?php
 require __DIR__ . '/bootstrap.php';
 
-$user = requireLogin();
+$user = requireCustomer();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(false, 'Method tidak diizinkan.', null, 405);
 }
 
-$input   = body();
+$input  = body();
 requireCsrf($input);
 
-$orderId = (int) ($input['order_id'] ?? 0);
-$method  = (string) ($input['payment_method'] ?? '');
-$allowed = ['bank_transfer', 'ewallet', 'cod'];
+$orderId       = (int) ($input['order_id'] ?? 0);
+$paymentMethod = (string) ($input['payment_method'] ?? '');
+$allowed       = ['bank_transfer', 'qris', 'cod'];
 
-if (!$orderId || !in_array($method, $allowed, true)) {
+if (!$orderId || !in_array($paymentMethod, $allowed, true)) {
     jsonResponse(false, 'Metode pembayaran tidak valid.', null, 422);
 }
 
@@ -25,42 +25,54 @@ $order = $stmt->fetch();
 
 if (!$order) jsonResponse(false, 'Pesanan tidak ditemukan.', null, 404);
 
-// Bug #8: validasi status order — hanya boleh bayar jika sudah approved
-$payableStatuses = ['approved', 'waiting_payment'];
+// Order sudah approved otomatis — izinkan bayar dari pending/approved/waiting_payment
+$payableStatuses = ['pending', 'approved', 'waiting_payment'];
 if (!in_array($order['status'], $payableStatuses, true)) {
-    jsonResponse(false, 'Pesanan belum disetujui admin atau sudah tidak dapat dibayar.', null, 422);
+    jsonResponse(false, 'Pesanan sudah tidak dapat dibayar.', null, 422);
 }
 
-// Bug #8: cek apakah sudah ada payment aktif (bukan rejected)
+// Cegah duplikat — jika sudah ada payment aktif (bukan rejected), tolak
 $existing = $pdo->prepare(
-    "SELECT id FROM payments WHERE order_id=? AND payment_status != 'rejected'"
+    "SELECT id FROM payments WHERE order_id=? AND payment_status NOT IN ('rejected')"
 );
 $existing->execute([$orderId]);
 if ($existing->fetchColumn()) {
-    jsonResponse(false, 'Pembayaran untuk pesanan ini sudah ada. Tunggu verifikasi admin.', null, 422);
+    jsonResponse(false, 'Pembayaran untuk pesanan ini sudah tercatat. Tunggu verifikasi admin.', null, 422);
 }
 
-$paymentStatus = $method === 'cod' ? 'paid' : 'waiting_verification';
-$orderStatus   = $method === 'cod' ? 'paid' : 'waiting_payment';
+$paymentStatus = $paymentMethod === 'cod' ? 'paid' : 'waiting_verification';
+$orderStatus   = $paymentMethod === 'cod' ? 'paid'  : 'waiting_payment';
 
 $pdo->beginTransaction();
 try {
-    $stmt = $pdo->prepare(
+    $pdo->prepare(
         'INSERT INTO payments (order_id,payment_method,payment_status,amount) VALUES (?,?,?,?)'
-    );
-    $stmt->execute([$orderId, $method, $paymentStatus, $order['total']]);
+    )->execute([$orderId, $paymentMethod, $paymentStatus, $order['total']]);
 
     $pdo->prepare(
         'UPDATE orders SET payment_status=?,status=? WHERE id=?'
     )->execute([$paymentStatus, $orderStatus, $orderId]);
 
     // Notifikasi ke customer
-    $msg = $method === 'cod'
-        ? "Pembayaran COD untuk pesanan #{$orderId} dikonfirmasi."
-        : "Bukti pembayaran pesanan #{$orderId} sedang diverifikasi admin.";
-    $pdo->prepare(
-        'INSERT INTO notifications (user_id,title,message) VALUES (?,?,?)'
-    )->execute([$user['id'], 'Status pembayaran', $msg]);
+    $methodLabel = ['bank_transfer' => 'Transfer Bank', 'qris' => 'QRIS', 'cod' => 'Bayar di Tempat'];
+    $label = $methodLabel[$paymentMethod] ?? $paymentMethod;
+
+    if ($paymentMethod === 'cod') {
+        $notifTitle = 'Pembayaran COD dikonfirmasi';
+        $notifMsg   = "Pesanan {$order['order_code']}: pembayaran COD senilai Rp " . number_format((float)$order['total'], 0, ',', '.') . " telah dikonfirmasi.";
+        $eventType  = 'payment_cod_confirmed';
+    } else {
+        $notifTitle = 'Menunggu bukti pembayaran';
+        $notifMsg   = "Pesanan {$order['order_code']}: metode {$label} dipilih. Silakan upload bukti transfer ke rekening admin.";
+        $eventType  = 'payment_method_selected';
+    }
+
+    insertNotification(
+        $pdo, $user['id'],
+        $notifTitle,
+        $notifMsg,
+        $orderId, $eventType
+    );
 
     $pdo->commit();
 } catch (Throwable $error) {
@@ -68,4 +80,8 @@ try {
     jsonResponse(false, $error->getMessage(), null, 500);
 }
 
-jsonResponse(true, 'Metode pembayaran disimpan.', ['payment_status' => $paymentStatus]);
+jsonResponse(true, 'Metode pembayaran disimpan.', [
+    'payment_status' => $paymentStatus,
+    'order_status'   => $orderStatus,
+    'need_upload'    => $paymentMethod !== 'cod',
+]);

@@ -208,22 +208,42 @@ if ($resource === 'orders' && $method === 'PUT') {
 
         // Notifikasi ke customer jika status berubah
         if ($status) {
-            $statusLabels = [
-                'approved'     => 'disetujui',
-                'waiting_payment' => 'menunggu pembayaran',
-                'paid'         => 'pembayaran dikonfirmasi',
-                'ongoing'      => 'sedang berjalan',
-                'completed'    => 'selesai',
-                'cancelled'    => 'dibatalkan',
+            // Ambil payment_status terkini untuk konteks pesan yang akurat
+            $currentPayment = $pdo->prepare(
+                'SELECT payment_method FROM payments WHERE order_id=? ORDER BY id DESC LIMIT 1'
+            );
+            $currentPayment->execute([$id]);
+            $paymentMethod = $currentPayment->fetchColumn() ?: null;
+
+            $methodLabel = ['bank_transfer' => 'Transfer Bank', 'qris' => 'QRIS', 'cod' => 'Bayar di Tempat'];
+            $methodText  = $paymentMethod ? ($methodLabel[$paymentMethod] ?? $paymentMethod) : '';
+
+            $notifMap = [
+                // 'approved' dihapus — order sudah auto-approved, admin tidak perlu approve lagi.
+                // Jika admin memang mengubah status ke approved secara manual, kirim notif netral.
+                'approved'        => ['Pesanan disetujui',
+                                      "Pesanan {$orderRow['order_code']} telah disetujui. Silakan lanjutkan ke pembayaran."],
+                'waiting_payment' => ['Menunggu pembayaran',
+                                      "Pesanan {$orderRow['order_code']} menunggu pembayaran dari kamu."],
+                'paid'            => ['Pembayaran dikonfirmasi',
+                                      "Pembayaran pesanan {$orderRow['order_code']}" .
+                                      ($methodText ? " via {$methodText}" : "") .
+                                      " telah dikonfirmasi oleh admin!"],
+                'ongoing'         => ['Rental sedang berjalan',
+                                      "Pesanan {$orderRow['order_code']} sedang berjalan. Selamat berpetualang!"],
+                'completed'       => ['Rental selesai',
+                                      "Pesanan {$orderRow['order_code']} selesai. Terima kasih sudah menyewa di Urban Adventure!"],
+                'cancelled'       => ['Pesanan dibatalkan',
+                                      "Pesanan {$orderRow['order_code']} dibatalkan oleh admin. Hubungi kami untuk info lebih lanjut."],
             ];
-            $label = $statusLabels[$status] ?? $status;
-            $pdo->prepare(
-                'INSERT INTO notifications (user_id,title,message) VALUES (?,?,?)'
-            )->execute([
-                (int) $orderRow['user_id'],
-                'Update pesanan',
-                "Pesanan {$orderRow['order_code']} telah {$label}.",
-            ]);
+            if (isset($notifMap[$status])) {
+                [$notifTitle, $notifMsg] = $notifMap[$status];
+                insertNotification(
+                    $pdo, (int) $orderRow['user_id'],
+                    $notifTitle, $notifMsg,
+                    $id, 'admin_status_' . $status
+                );
+            }
         }
 
         // Audit log

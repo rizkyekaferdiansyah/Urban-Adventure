@@ -1,7 +1,7 @@
 <?php
 require __DIR__ . '/bootstrap.php';
 
-$user = requireLogin();
+$user = requireCustomer();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(false, 'Method tidak diizinkan.', null, 405);
@@ -81,13 +81,12 @@ $pdo->prepare(
 )->execute([$orderId]);
 
 // Notifikasi admin (insert ke notif user admin pertama, atau cukup ke user sendiri)
-$pdo->prepare(
-    'INSERT INTO notifications (user_id,title,message) VALUES (?,?,?)'
-)->execute([
-    $user['id'],
-    'Bukti pembayaran diunggah',
-    "Bukti pembayaran untuk pesanan #{$orderId} sedang menunggu verifikasi admin.",
-]);
+insertNotification(
+    $pdo, $user['id'],
+    'Bukti pembayaran dikirim',
+    "Bukti transfer pesanan #{$orderId} berhasil diunggah dan sedang menunggu verifikasi.",
+    $orderId, 'proof_uploaded'
+);
 
 jsonResponse(true, 'Bukti pembayaran berhasil diunggah. Menunggu verifikasi admin.', [
     'path' => $relativePath,

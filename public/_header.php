@@ -1,6 +1,22 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+
+// Jika yang login adalah admin, arahkan ke admin panel
+// (kecuali halaman login/register/logout yang memang publik)
+$currentPage = basename($_SERVER['PHP_SELF']);
+$publicOnly  = ['login.php', 'register.php', 'logout.php'];
+
+if (isset($_SESSION['user'])) {
+    if ($_SESSION['user']['role'] === 'admin' && !in_array($currentPage, $publicOnly, true)) {
+        header('Location: ../admin/index.php');
+        exit;
+    }
+} elseif (!in_array($currentPage, array_merge($publicOnly, ['index.php', 'product.php']), true)) {
+    // Halaman yang butuh login tapi belum login → redirect ke login
+    header('Location: login.php');
+    exit;
+}
 ?><!doctype html>
 <html lang="id">
     <head>
@@ -9,7 +25,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) session_start();
         <title><?= htmlspecialchars($title ?? 'Urban Adventure') ?></title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="../assets/css/app.css?v=20260924">
+        <link rel="stylesheet" href="../assets/css/app.css?v=20261002">
     </head>
     <body>
         <header class="site-header">
@@ -29,8 +45,8 @@ if (session_status() !== PHP_SESSION_ACTIVE) session_start();
                     <div class="notif-wrapper">
                         <button id="notifBell" class="notif-bell" aria-label="Notifikasi" aria-haspopup="true" aria-expanded="false" onclick="toggleNotifPanel()">🔔</button>
                         <div id="notifPanel" class="notif-panel" hidden>
-                            <div class="notif-header"><strong>Notifikasi</strong></div>
-                            <div id="notifList"><p class="muted">Memuat...</p></div>
+                            <div class="notif-panel-header"><strong>Notifikasi</strong></div>
+                            <div id="notifList"><p class="notif-empty">Memuat...</p></div>
                         </div>
                     </div>
                     <a class="button small" href="../api/auth.php?action=logout">Keluar</a>
@@ -39,7 +55,9 @@ if (session_status() !== PHP_SESSION_ACTIVE) session_start();
                 <?php endif; ?>
             </nav>
         </header>
-        <main class="page-shell"><script src="../assets/js/nav.js"></script>
+        <main class="page-shell">
+        <script src="../assets/js/nav.js"></script>
+        <script src="../assets/js/poll.js"></script>
 <script>
 function toggleNotifPanel() {
   const panel = document.getElementById("notifPanel");

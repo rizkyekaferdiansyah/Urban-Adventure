@@ -96,7 +96,25 @@ if ($action === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
 if ($action === 'logout') {
+    // Hapus semua data session
+    $_SESSION = [];
+
+    // Hapus cookie session agar tidak ada sisa di browser
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(
+            session_name(),
+            '',
+            time() - 42000,
+            $params['path'],
+            $params['domain'],
+            $params['secure'],
+            $params['httponly']
+        );
+    }
+
     session_destroy();
+
     if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'text/html')) {
         header('Location: ../public/login.php');
         exit;

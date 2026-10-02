@@ -1,4 +1,14 @@
-<?php $title='Daftar | Urban Adventure'; require __DIR__ . '/_header.php'; ?>
+<?php
+$title = 'Daftar | Urban Adventure';
+require __DIR__ . '/_header.php';
+
+// Jika sudah login, tidak perlu daftar lagi
+if (isset($_SESSION['user'])) {
+    $redirect = $_SESSION['user']['role'] === 'admin' ? '../admin/index.php' : 'index.php';
+    header('Location: ' . $redirect);
+    exit;
+}
+?>
 <section class="auth-panel">
     <p class="eyebrow dark">MULAI BERTUALANG</p>
     <h1>Buat akun rental.</h1>

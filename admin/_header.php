@@ -20,7 +20,7 @@ $adminBase  = $isSubpage ? '../..' : '..';
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Admin | Urban Adventure</title>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= $assetBase ?>/css/app.css?v=20260925">
+    <link rel="stylesheet" href="<?= $assetBase ?>/css/app.css?v=20261002">
 </head>
 <body>
     <header class="site-header">
@@ -35,8 +35,10 @@ $adminBase  = $isSubpage ? '../..' : '..';
             <a href="<?= $adminBase ?>/admin/products.php">Produk</a>
             <a href="<?= $adminBase ?>/admin/customers.php">Pelanggan</a>
             <a href="<?= $adminBase ?>/admin/reports.php">Laporan</a>
+            <a href="<?= $adminBase ?>/admin/payment_settings.php">Pembayaran</a>
             <a class="button small" href="<?= $adminBase ?>/api/auth.php?action=logout">Keluar</a>
         </nav>
     </header>
     <main class="page-shell">
         <script src="<?= $assetBase ?>/js/nav.js"></script>
+        <script src="<?= $assetBase ?>/js/poll.js"></script>

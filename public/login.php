@@ -1,4 +1,13 @@
-<?php $title='Masuk | Urban Adventure'; require __DIR__ . '/_header.php'; ?>
+<?php
+$title = 'Masuk | Urban Adventure';
+require __DIR__ . '/_header.php';
+
+// Jika sudah login sebagai customer, langsung ke beranda
+if (isset($_SESSION['user']) && $_SESSION['user']['role'] === 'customer') {
+    header('Location: index.php');
+    exit;
+}
+?>
 <section class="auth-panel">
     <p class="eyebrow dark">URBAN ADVENTURE</p>
     <h1>Selamat datang kembali.</h1>

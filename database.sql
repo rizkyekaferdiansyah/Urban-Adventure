@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS order_items (
 CREATE TABLE IF NOT EXISTS payments (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   order_id INT UNSIGNED NOT NULL,
-  payment_method ENUM('bank_transfer','ewallet','cod') NOT NULL,
+  payment_method ENUM('bank_transfer','qris','cod') NOT NULL,
   payment_status ENUM('unpaid','waiting_verification','paid','rejected') NOT NULL DEFAULT 'unpaid',
   amount DECIMAL(12,2) NOT NULL,
   proof_image VARCHAR(255) NULL,
@@ -131,13 +131,34 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE TABLE IF NOT EXISTS notifications (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,
+  order_id INT UNSIGNED NULL DEFAULT NULL,
+  event_type VARCHAR(60) NULL DEFAULT NULL,
   title VARCHAR(180) NOT NULL,
   message TEXT NOT NULL,
   is_read TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_notif_order_event (user_id, order_id, event_type),
   CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE INDEX idx_orders_dates ON orders (start_date, end_date, status);
 CREATE INDEX idx_orders_user ON orders (user_id, created_at);
 CREATE INDEX idx_products_status ON products (status, category_id);
+
+-- ── Payment Settings ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS payment_settings (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `key`      VARCHAR(80)  NOT NULL UNIQUE,
+  value      VARCHAR(500) NOT NULL DEFAULT '',
+  updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- Seed default values (INSERT IGNORE agar tidak overwrite data yang sudah ada)
+INSERT IGNORE INTO payment_settings (`key`, value) VALUES
+  ('bank_name',           'Bank BCA'),
+  ('bank_account_number', '1234567890'),
+  ('bank_account_name',   'Urban Adventure'),
+  ('bank_is_active',      '1'),
+  ('qris_image_path',     ''),
+  ('qris_is_active',      '1');

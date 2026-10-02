@@ -1,7 +1,7 @@
 <?php
 require __DIR__ . '/bootstrap.php';
 
-$user   = requireLogin();
+$user   = requireCustomer();
 $pdo    = db();
 $input  = body();
 $method = $_SERVER['REQUEST_METHOD'];

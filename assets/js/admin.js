@@ -639,3 +639,176 @@ async function deleteProductImage(id) {
     loadProductForm();
   } catch (error) { alert(error.message); }
 }
+
+// ─── Payment Settings ─────────────────────────────────────────────────────────
+async function loadPaymentSettings() {
+  const container = document.getElementById("paymentSettings");
+  if (!container) return;
+  try {
+    await adminInit();
+    const s = await adminApi(`${API_BASE}/payment_settings.php`);
+
+    container.innerHTML = `
+      <!-- ── Transfer Bank ── -->
+      <div class="form-section" style="margin-bottom:20px">
+        <h2>Transfer Bank</h2>
+        <div class="pay-setting-toggle">
+          <label class="toggle-label">
+            <span>Status</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="bankActive" ${s.bank_is_active === '1' ? 'checked' : ''}>
+              <span class="toggle-slider"></span>
+            </label>
+            <span id="bankActiveLabel" class="toggle-status">${s.bank_is_active === '1' ? 'Aktif' : 'Nonaktif'}</span>
+          </label>
+        </div>
+        <div class="form-grid">
+          <label class="form-label">
+            Nama Bank
+            <input class="input" id="bankName" value="${esc(s.bank_name || '')}" placeholder="Bank BCA">
+          </label>
+          <label class="form-label">
+            Nomor Rekening
+            <input class="input" id="bankNumber" value="${esc(s.bank_account_number || '')}" placeholder="1234567890">
+          </label>
+          <label class="form-label">
+            Nama Pemilik (A.N.)
+            <input class="input" id="bankOwner" value="${esc(s.bank_account_name || '')}" placeholder="Urban Adventure">
+          </label>
+        </div>
+        <div class="form-actions" style="margin-top:4px">
+          <p id="bankMsg" class="form-message"></p>
+          <button class="button" onclick="saveBankSettings()">Simpan pengaturan bank</button>
+        </div>
+      </div>
+
+      <!-- ── QRIS ── -->
+      <div class="form-section">
+        <h2>QRIS</h2>
+        <div class="pay-setting-toggle">
+          <label class="toggle-label">
+            <span>Status</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="qrisActive" ${s.qris_is_active === '1' ? 'checked' : ''}>
+              <span class="toggle-slider"></span>
+            </label>
+            <span id="qrisActiveLabel" class="toggle-status">${s.qris_is_active === '1' ? 'Aktif' : 'Nonaktif'}</span>
+          </label>
+        </div>
+
+        <!-- Preview QRIS aktif -->
+        <div id="qrisPreview" style="margin:12px 0">
+          ${s.qris_image_path
+            ? `<p class="muted" style="font-size:.82rem;margin:0 0 8px">QRIS aktif saat ini:</p>
+               <img src="../${esc(s.qris_image_path)}" alt="QRIS" class="qris-preview-img">`
+            : `<p class="muted" style="font-size:.82rem">Belum ada gambar QRIS. Silakan upload di bawah.</p>`
+          }
+        </div>
+
+        <label class="form-label">
+          Upload gambar QRIS baru
+          <input class="input" type="file" id="qrisFile" accept="image/jpeg,image/png">
+          <small class="muted">JPG atau PNG, maksimal 2 MB.</small>
+        </label>
+        <div id="qrisNewPreview" style="margin-top:10px"></div>
+        <div class="form-actions" style="margin-top:4px">
+          <p id="qrisMsg" class="form-message"></p>
+          <button class="button" onclick="saveQrisSettings()">Simpan pengaturan QRIS</button>
+        </div>
+      </div>`;
+
+    // Toggle bank label
+    document.getElementById("bankActive").addEventListener("change", (e) => {
+      document.getElementById("bankActiveLabel").textContent = e.target.checked ? "Aktif" : "Nonaktif";
+    });
+
+    // Toggle qris label
+    document.getElementById("qrisActive").addEventListener("change", (e) => {
+      document.getElementById("qrisActiveLabel").textContent = e.target.checked ? "Aktif" : "Nonaktif";
+    });
+
+    // Preview QRIS baru sebelum upload
+    document.getElementById("qrisFile").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      const prev = document.getElementById("qrisNewPreview");
+      if (!file) { prev.innerHTML = ""; return; }
+      const url = URL.createObjectURL(file);
+      prev.innerHTML = `<p class="muted" style="font-size:.82rem;margin:0 0 6px">Preview:</p>
+                        <img src="${url}" alt="Preview QRIS" class="qris-preview-img">`;
+    });
+
+  } catch (err) {
+    container.innerHTML = `<p class="error">${esc(err.message)}</p>`;
+  }
+}
+
+async function saveBankSettings() {
+  const btn = document.querySelector("#paymentSettings .form-section:first-child .button");
+  const msg = document.getElementById("bankMsg");
+  if (btn) { btn.disabled = true; btn.textContent = "Menyimpan…"; }
+  if (msg) { msg.textContent = ""; msg.className = "form-message"; }
+  try {
+    await adminApi(`${API_BASE}/payment_settings.php`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bank_name:           document.getElementById("bankName").value,
+        bank_account_number: document.getElementById("bankNumber").value,
+        bank_account_name:   document.getElementById("bankOwner").value,
+        bank_is_active:      document.getElementById("bankActive").checked,
+        csrf:                adminCsrf,
+      }),
+    });
+    if (msg) { msg.textContent = "✓ Pengaturan bank disimpan."; msg.className = "form-message form-message--success"; }
+  } catch (err) {
+    if (msg) { msg.textContent = err.message; msg.className = "form-message form-message--error"; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Simpan pengaturan bank"; }
+  }
+}
+
+async function saveQrisSettings() {
+  const btn     = document.querySelector("#paymentSettings .form-section:last-child .button");
+  const msg     = document.getElementById("qrisMsg");
+  const fileEl  = document.getElementById("qrisFile");
+  if (btn) { btn.disabled = true; btn.textContent = "Menyimpan…"; }
+  if (msg) { msg.textContent = ""; msg.className = "form-message"; }
+  try {
+    // 1. Simpan status aktif/nonaktif QRIS
+    await adminApi(`${API_BASE}/payment_settings.php`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        qris_is_active: document.getElementById("qrisActive").checked,
+        csrf:           adminCsrf,
+      }),
+    });
+
+    // 2. Upload gambar baru jika dipilih
+    if (fileEl.files.length > 0) {
+      if (msg) msg.textContent = "Mengunggah gambar QRIS…";
+      const fd = new FormData();
+      fd.append("qris_image", fileEl.files[0]);
+      fd.append("csrf", adminCsrf);
+      const res    = await fetch(`${API_BASE}/payment_settings.php`, { method: "POST", body: fd });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message);
+
+      // Refresh preview
+      const newPath = result.data?.qris_image_path;
+      if (newPath) {
+        document.getElementById("qrisPreview").innerHTML =
+          `<p class="muted" style="font-size:.82rem;margin:0 0 8px">QRIS aktif saat ini:</p>
+           <img src="../${esc(newPath)}" alt="QRIS" class="qris-preview-img">`;
+        document.getElementById("qrisNewPreview").innerHTML = "";
+        fileEl.value = "";
+      }
+    }
+
+    if (msg) { msg.textContent = "✓ Pengaturan QRIS disimpan."; msg.className = "form-message form-message--success"; }
+  } catch (err) {
+    if (msg) { msg.textContent = err.message; msg.className = "form-message form-message--error"; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Simpan pengaturan QRIS"; }
+  }
+}

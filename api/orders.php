@@ -1,7 +1,7 @@
 <?php
 require __DIR__ . '/bootstrap.php';
 
-$user   = requireLogin();
+$user   = requireCustomer();
 $pdo    = db();
 $method = $_SERVER['REQUEST_METHOD'];
 $input  = body();
@@ -26,7 +26,6 @@ if ($method === 'GET') {
         $items->execute([$order['id']]);
         $order['items'] = $items->fetchAll();
 
-        // Sertakan data payment jika ada
         $payment = $pdo->prepare(
             'SELECT id,payment_method,payment_status,amount,proof_image,paid_at,created_at
              FROM payments WHERE order_id=? ORDER BY id DESC LIMIT 1'
@@ -43,7 +42,6 @@ if ($method === 'GET') {
 if ($method === 'POST') {
     requireCsrf($input);
 
-    // Ambil cart + data produk termasuk deposit
     $cart = $pdo->prepare(
         'SELECT c.*,p.name,p.price_per_day,p.stock,p.deposit
          FROM cart c
@@ -68,9 +66,8 @@ if ($method === 'POST') {
         }
     }
 
-    $days     = rentalDays($start, $end);
-    $subtotal = 0;
-    // Bug #4: hitung deposit dari setiap produk
+    $days         = rentalDays($start, $end);
+    $subtotal     = 0;
     $totalDeposit = 0;
     foreach ($items as $item) {
         $subtotal     += (float) $item['price_per_day'] * $days * (int) $item['quantity'];
@@ -90,13 +87,13 @@ if ($method === 'POST') {
             }
         }
 
-        // Bug #5: generate kode dulu dengan placeholder, update setelah dapat orderId
+        // Order langsung masuk status "approved" — customer bisa langsung bayar
+        $placeholderCode = 'UA-TEMP-' . bin2hex(random_bytes(4));
         $order = $pdo->prepare(
             'INSERT INTO orders
-             (order_code,user_id,start_date,end_date,total_days,subtotal,deposit,total,notes)
-             VALUES (?,?,?,?,?,?,?,?,?)'
+             (order_code,user_id,start_date,end_date,total_days,subtotal,deposit,total,status,notes)
+             VALUES (?,?,?,?,?,?,?,?,?,?)'
         );
-        $placeholderCode = 'UA-TEMP-' . bin2hex(random_bytes(4));
         $order->execute([
             $placeholderCode,
             $user['id'],
@@ -106,11 +103,11 @@ if ($method === 'POST') {
             $subtotal,
             $totalDeposit,
             $grandTotal,
+            'approved',   // langsung approved, tidak perlu tunggu admin
             trim((string) ($input['notes'] ?? '')),
         ]);
         $orderId = (int) $pdo->lastInsertId();
 
-        // Kode unik berbasis orderId — tidak mungkin collision
         $code = 'UA-' . date('Ymd') . '-' . str_pad((string) $orderId, 5, '0', STR_PAD_LEFT);
         $pdo->prepare('UPDATE orders SET order_code=? WHERE id=?')->execute([$code, $orderId]);
 
@@ -130,13 +127,16 @@ if ($method === 'POST') {
         }
 
         $pdo->prepare('DELETE FROM cart WHERE user_id=?')->execute([$user['id']]);
-        $pdo->prepare(
-            'INSERT INTO notifications (user_id,title,message) VALUES (?,?,?)'
-        )->execute([
-            $user['id'],
+
+        // Notifikasi ringkas dan sesuai alur: order langsung approved, bisa langsung bayar
+        $itemNames = implode(', ', array_column($items, 'name'));
+        $totalFmt  = 'Rp ' . number_format($grandTotal, 0, ',', '.');
+        insertNotification(
+            $pdo, $user['id'],
             'Pesanan berhasil dibuat',
-            "Pesanan {$code} senilai " . number_format($grandTotal, 0, ',', '.') . " menunggu persetujuan admin tombol untuk membayar akan muncul jikan admin sudah menyetujui pesanan.",
-        ]);
+            "Pesanan {$code} ({$itemNames}) senilai {$totalFmt} — silakan pilih metode pembayaran.",
+            $orderId, 'order_created'
+        );
 
         $pdo->commit();
     } catch (Throwable $error) {
@@ -157,8 +157,8 @@ if ($method === 'DELETE' && $id) {
 
     if (!$order) jsonResponse(false, 'Pesanan tidak ditemukan.', null, 404);
 
-    // Hanya boleh cancel jika masih pending atau approved (belum bayar)
-    $cancellable = ['pending', 'approved'];
+    // Hanya boleh cancel jika belum bayar
+    $cancellable = ['pending', 'approved', 'waiting_payment'];
     if (!in_array($order['status'], $cancellable, true)) {
         jsonResponse(false, 'Pesanan tidak dapat dibatalkan pada status ini.', null, 422);
     }
@@ -167,7 +167,6 @@ if ($method === 'DELETE' && $id) {
     try {
         $pdo->prepare("UPDATE orders SET status='cancelled' WHERE id=?")->execute([$id]);
 
-        // Kembalikan stok
         $items = $pdo->prepare(
             'SELECT product_id, quantity FROM order_items WHERE order_id=? AND product_id IS NOT NULL'
         );
@@ -177,9 +176,16 @@ if ($method === 'DELETE' && $id) {
             $restore->execute([(int) $item['quantity'], (int) $item['product_id']]);
         }
 
-        $pdo->prepare(
-            'INSERT INTO notifications (user_id,title,message) VALUES (?,?,?)'
-        )->execute([$user['id'], 'Pesanan dibatalkan', "Pesanan #{$id} telah dibatalkan."]);
+        $stmt2 = $pdo->prepare('SELECT order_code FROM orders WHERE id=?');
+        $stmt2->execute([$id]);
+        $orderCode = $stmt2->fetchColumn() ?: "#{$id}";
+
+        insertNotification(
+            $pdo, $user['id'],
+            'Pesanan dibatalkan',
+            "Pesanan {$orderCode} telah berhasil dibatalkan dan stok dikembalikan.",
+            $id, 'order_cancelled'
+        );
 
         $pdo->commit();
     } catch (Throwable $error) {
